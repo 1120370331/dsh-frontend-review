@@ -418,3 +418,22 @@ button { font: inherit; }
 .btn.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn.btn-primary:disabled { opacity: .45; cursor: not-allowed; }
 
+
+/* local magnifier */
+.loupe {
+  position: fixed; z-index: 140; width: 224px; height: 224px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.9); box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 18px 48px rgba(0,0,0,.42);
+  background-color: #fff; background-repeat: no-repeat; pointer-events: none; display: none;
+  overflow: hidden;
+}
+.loupe[data-open="true"] { display: block; }
+.loupe::before, .loupe::after { content: ""; position: absolute; left: 50%; top: 50%; background: rgba(255,255,255,.45); pointer-events: none; }
+.loupe::before { width: 1px; height: 16px; transform: translate(-50%, -50%); }
+.loupe::after { width: 16px; height: 1px; transform: translate(-50%, -50%); }
+.loupe-badge {
+  position: absolute; right: 10px; bottom: 10px; z-index: 2;
+  padding: 2px 7px; border-radius: 999px; background: rgba(10,15,25,.72); color: #fff;
+  font-size: 10px; font-weight: 700; letter-spacing: .2px;
+}
+.stage[data-tool="loupe"] .card .shot { cursor: zoom-in; }
+.compare[data-mode="loupe"] .compare-frame { cursor: zoom-in; }

@@ -27,6 +27,7 @@
   const annotationPopoverTitle = document.getElementById('annotation-popover-title')
   const annotationPopoverStatus = document.getElementById('annotation-popover-status')
   const annotationPopoverDelete = document.getElementById('delete-annotation-popover')
+  const loupeButton = document.getElementById('toggle-loupe')
   const compareButton = document.getElementById('toggle-compare')
   const comparePicker = document.getElementById('compare-picker')
   const compareOptions = document.getElementById('compare-options')
@@ -36,6 +37,7 @@
   const compareGrid = document.getElementById('compare-grid')
   const compareSub = document.getElementById('compare-sub')
   const compareFoot = document.getElementById('compare-foot')
+  const loupe = document.getElementById('loupe')
   const bar = document.querySelector('.bar')
 
   let zoom = 1
@@ -64,6 +66,8 @@
   const compareSelection = new Set()
   let compareIds = []
   let compareDrawing = null
+  const LOUPE_SIZE = 224
+  const LOUPE_ZOOM = 2
 
   const escape = (value) => String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -92,10 +96,31 @@
     pin: '标记',
     note: '批注',
     component: '组件',
+    loupe: '局部放大',
   })[kind] || kind
 
   function assetUrl(versionId) {
     return `${base}/api/asset/${encodeURIComponent(data.reviewId)}/${encodeURIComponent(versionId)}${token ? `?token=${encodeURIComponent(token)}` : ''}`
+  }
+
+  function hideLoupe() {
+    loupe.dataset.open = 'false'
+  }
+
+  function showLoupe(versionId, rect, clientX, clientY, sourceWidth, sourceHeight) {
+    if (!versionId || !rect || rect.width < 4 || rect.height < 4) return
+    const nx = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    const ny = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
+    const bgW = (sourceWidth || rect.width) * LOUPE_ZOOM
+    const bgH = (sourceHeight || rect.height) * LOUPE_ZOOM
+    loupe.style.backgroundImage = `url("${assetUrl(versionId)}")`
+    loupe.style.backgroundSize = `${bgW}px ${bgH}px`
+    loupe.style.backgroundPosition = `${LOUPE_SIZE / 2 - nx * bgW}px ${LOUPE_SIZE / 2 - ny * bgH}px`
+    const left = Math.max(8, Math.min(window.innerWidth - LOUPE_SIZE - 8, clientX - LOUPE_SIZE / 2))
+    const top = Math.max(8, Math.min(window.innerHeight - LOUPE_SIZE - 8, clientY - LOUPE_SIZE / 2))
+    loupe.style.left = `${left}px`
+    loupe.style.top = `${top}px`
+    loupe.dataset.open = 'true'
   }
 
   function htmlUrl(versionId) {
@@ -323,6 +348,7 @@
           ${toolButton('pen', '✎', '画笔')}
           ${toolButton('pin', '●', '标记')}
           ${toolButton('note', '✚', '只加批注')}
+          ${toolButton('loupe', '⌕', '局部放大')}
           ${toolButton('preview', '↗', '互动预览')}
         </div>
         <div class="swatches">
@@ -379,6 +405,7 @@
 
   function setTool(next) {
     tool = next
+    if (next !== 'loupe') hideLoupe()
     stage.dataset.tool = tool
     preview.dataset.mode = tool
     compare.dataset.mode = tool
@@ -386,12 +413,15 @@
       if (tool === 'component') enablePicker(true)
       else if (pickerArmed) enablePicker(false)
     }
+    loupeButton.dataset.on = String(tool === 'loupe')
     updatePreviewToolButtons()
     updateCompareToolButtons()
     if (compare.dataset.open === 'true') {
       compareFoot.textContent = tool === 'select'
         ? '当前工具：浏览。点批注图形可选中；切到批注工具后可在一列上圈画。'
-        : `当前工具：${kindLabel(tool)}。在任意一列上拖动，批注会落到该列对应的版本。`
+        : tool === 'loupe'
+          ? '当前工具：局部放大。移动到任意一列，查看 2× 细节。'
+          : `当前工具：${kindLabel(tool)}。在任意一列上拖动，批注会落到该列对应的版本。`
     }
     renderInspector()
   }
@@ -1052,7 +1082,7 @@
       return
     }
     const head = event.target.closest('.card-head')
-    if (head && !event.target.closest('button') && !event.target.closest('.card-action')) {
+    if (head && tool !== 'loupe' && !event.target.closest('button') && !event.target.closest('.card-action')) {
       startCardDrag(event, head.closest('.card'), head)
       return
     }
@@ -1061,6 +1091,16 @@
     panning = { startX: event.clientX, startY: event.clientY, originX: pan.x, originY: pan.y }
   })
   stage.addEventListener('pointermove', (event) => {
+    if (tool === 'loupe') {
+      const card = event.target.closest('.card')
+      const image = card?.querySelector('.shot img')
+      if (!card || !image) {
+        hideLoupe()
+        return
+      }
+      showLoupe(card.dataset.versionId, image.getBoundingClientRect(), event.clientX, event.clientY, image.naturalWidth, image.naturalHeight)
+      return
+    }
     if (dragging) {
       const dx = (event.clientX - dragging.startX) / zoom
       const dy = (event.clientY - dragging.startY) / zoom
@@ -1106,8 +1146,10 @@
   })
   stage.addEventListener('wheel', (event) => {
     event.preventDefault()
+    hideLoupe()
     zoomBy(event.deltaY > 0 ? 0.9 : 1.1, event.clientX, event.clientY)
   }, { passive: false })
+  stage.addEventListener('pointerleave', hideLoupe)
 
   outline.addEventListener('click', (event) => {
     const item = event.target.closest('.outline-item')
@@ -1163,7 +1205,11 @@
         return
       }
       setTool(next)
-      showToast(next === 'select' ? '已回到浏览模式' : `已选择「${toolButton.textContent.trim()}」，在页面上拖拽`, 'info')
+      showToast(next === 'select'
+        ? '已回到浏览模式'
+        : next === 'loupe'
+          ? '移动到页面截图上，查看 2× 局部放大'
+          : `已选择「${toolButton.textContent.trim()}」，在页面上拖拽`, 'info')
       return
     }
     const colorButton = event.target.closest('[data-color]')
@@ -1313,6 +1359,10 @@
     layoutCompareBounds()
     if (preview.dataset.open === 'true') layoutPreview()
     if (compare.dataset.open === 'true') renderCompare()
+  })
+  loupeButton.addEventListener('click', () => {
+    setTool(tool === 'loupe' ? 'select' : 'loupe')
+    showToast(tool === 'loupe' ? '移动到页面截图上，查看 2× 局部放大' : '已关闭局部放大', 'info')
   })
   annToggle.addEventListener('click', () => {
     showAnnotations = !showAnnotations
@@ -1737,6 +1787,16 @@
     layer.innerHTML = annotationContent([{ id: 'compare-draft', kind: tool, geometry: compareDrawing.geometry, color }])
   })
   compareGrid.addEventListener('pointermove', (event) => {
+    if (tool === 'loupe') {
+      const column = event.target.closest('.compare-col')
+      const image = column?.querySelector('.compare-frame img')
+      if (!column || !image) {
+        hideLoupe()
+        return
+      }
+      showLoupe(column.dataset.versionId, image.getBoundingClientRect(), event.clientX, event.clientY, image.naturalWidth, image.naturalHeight)
+      return
+    }
     if (!compareDrawing) return
     const point = comparePoint(compareDrawing.layer, event)
     if (compareDrawing.kind === 'pen') {
@@ -1760,6 +1820,7 @@
     if (compareDrawing?.layer) compareDrawing.layer.innerHTML = ''
     compareDrawing = null
   })
+  compareGrid.addEventListener('pointerleave', hideLoupe)
 
   async function submitFeedback() {
     if (submitting) return
@@ -1807,3 +1868,4 @@
     }
   }
 })()
+

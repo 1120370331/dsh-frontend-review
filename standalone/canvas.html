@@ -20,6 +20,7 @@
       </div>
       <div class="toolbar">
         <button class="btn" id="toggle-annotations" type="button" data-on="true">全部批注 显示</button>
+        <button class="btn" id="toggle-loupe" type="button" data-on="false">局部放大</button>
         <button class="btn" id="toggle-compare" type="button" data-on="false">对比</button>
         <button class="btn" id="fit" type="button">适配</button>
         <span class="zoom-readout" id="zoom-readout">100%</span>
@@ -123,6 +124,7 @@
       <button type="button" class="link-btn" id="delete-annotation-popover">删除草稿</button>
     </div>
   </div>
+  <div id="loupe" class="loupe" data-open="false" aria-hidden="true"><span class="loupe-badge">2×</span></div>
   <div id="context-menu" class="context-menu" role="menu" aria-hidden="true"></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script>
@@ -133,3 +135,4 @@
   <script>/*__JS__*/</script>
 </body>
 </html>
+
