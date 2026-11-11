@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Frontend review canvas">
+  <rect width="64" height="64" rx="14" fill="#101722"/>
+  <rect x="12" y="13" width="27" height="20" rx="4" fill="#e8eef7"/>
+  <rect x="16" y="17" width="19" height="2.5" rx="1.25" fill="#8a97a8"/>
+  <rect x="16" y="22" width="13" height="2.5" rx="1.25" fill="#b5c0ce"/>
+  <rect x="16" y="27" width="16" height="2.5" rx="1.25" fill="#b5c0ce"/>
+  <rect x="25" y="30" width="27" height="21" rx="4" fill="#246bfd"/>
+  <rect x="29" y="34" width="19" height="2.5" rx="1.25" fill="#dce8ff"/>
+  <rect x="29" y="39" width="12" height="2.5" rx="1.25" fill="#9ebcff"/>
+  <rect x="29" y="44" width="15" height="2.5" rx="1.25" fill="#9ebcff"/>
+  <path d="M17 43c8-8 19-8 27 0" fill="none" stroke="#ff5d5d" stroke-width="3.2" stroke-linecap="round"/>
+  <circle cx="47" cy="17" r="5.5" fill="#ff5d5d"/>
+  <path d="M47 14.5v5M44.5 17h5" stroke="#101722" stroke-width="1.8" stroke-linecap="round"/>
+</svg>

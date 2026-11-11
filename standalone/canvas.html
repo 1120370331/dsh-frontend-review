@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>__REVIEW_TITLE__ · 前端评审画布</title>
+  <style>/*__CSS__*/</style>
+</head>
+<body>
+  <div class="app">
+    <header class="bar">
+      <div class="identity">
+        <span class="mark" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="11" height="8" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="10" y="12" width="11" height="8" rx="1.5" stroke="currentColor" stroke-width="1.7"/><path d="M6 16c3-3 6-3 9 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </span>
+        <div class="identity-text">
+          <strong id="title">__REVIEW_TITLE__</strong>
+          <span id="subtitle">交互评审画布</span>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button class="btn" id="toggle-annotations" type="button" data-on="true">全部批注 显示</button>
+        <button class="btn" id="fit" type="button">适配</button>
+        <span class="zoom-readout" id="zoom-readout">100%</span>
+        <button class="btn icon" id="zoom-out" type="button" aria-label="缩小">−</button>
+        <button class="btn icon" id="zoom-in" type="button" aria-label="放大">+</button>
+        <button class="btn" id="toggle-inspector" type="button" data-on="true">操作面板</button>
+      </div>
+    </header>
+    <main id="stage" class="stage">
+      <div id="world" class="world"></div>
+      <div class="stage-hint" id="stage-hint">拖拽平移 · 滚轮缩放 · 点击页面查看批注</div>
+      <aside id="outline" class="outline" aria-label="画布结构"></aside>
+    </main>
+    <aside id="inspector" class="inspector" aria-label="页面详情">
+      <div class="inspector-head">
+        <strong>评审操作</strong>
+        <button class="btn icon" id="close-inspector" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="inspector-body" id="inspector-body"></div>
+    </aside>
+  </div>
+  <div id="preview" class="preview" data-open="false" aria-hidden="true">
+    <div class="preview-card">
+      <header class="preview-head">
+        <div class="preview-title">
+          <strong id="preview-title">互动预览</strong>
+          <span id="preview-sub">浏览页面，或切到批注工具直接在页面上圈画</span>
+        </div>
+        <div class="preview-actions">
+          <button class="btn" type="button" data-ptool="select" data-active="true">浏览</button>
+          <button class="btn" type="button" data-ptool="rect">框选</button>
+          <button class="btn" type="button" data-ptool="ellipse">圈选</button>
+          <button class="btn" type="button" data-ptool="arrow">箭头</button>
+          <button class="btn" type="button" data-ptool="pen">画笔</button>
+          <button class="btn" type="button" data-ptool="pin">标记</button>
+          <button class="btn" type="button" data-ptool="note">只加批注</button>
+          <button class="btn" id="pick-component" type="button" data-ptool="component">选择组件</button>
+          <button class="btn" id="close-preview" type="button">退出预览</button>
+        </div>
+      </header>
+      <div class="preview-stage" id="preview-stage">
+        <div class="preview-frame-wrap" id="preview-frame-wrap">
+          <iframe id="preview-frame" title="页面互动预览" sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>
+          <svg id="preview-annotations" class="preview-overlay preview-ann" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <svg id="preview-draw" class="preview-overlay preview-draw" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+        </div>
+      </div>
+      <footer class="preview-foot" id="preview-foot">浏览模式可直接操作页面；切到框选/圈选等工具后，直接在页面上拖动批注。</footer>
+    </div>
+  </div>
+  <div id="annotation-popover" class="annotation-popover" data-open="false" role="dialog" aria-label="批注文字">
+    <div class="annotation-popover-head">
+      <span id="annotation-popover-title">批注</span>
+      <button class="btn icon" id="close-annotation-popover" type="button" aria-label="关闭">×</button>
+    </div>
+    <textarea id="annotation-popover-text" class="field annotation-popover-text" placeholder="写一条批注…"></textarea>
+    <div class="annotation-popover-foot">
+      <span id="annotation-popover-status">自动保存</span>
+      <button type="button" class="link-btn" id="delete-annotation-popover">删除草稿</button>
+    </div>
+  </div>
+  <div id="context-menu" class="context-menu" role="menu" aria-hidden="true"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script>
+    window.__REVIEW__ = __REVIEW_DATA__;
+    window.__REVIEW_BASE__ = __REVIEW_BASE_JSON__;
+    window.__REVIEW_TOKEN__ = __REVIEW_TOKEN_JSON__;
+  </script>
+  <script>/*__JS__*/</script>
+</body>
+</html>

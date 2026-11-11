@@ -1,0 +1,5 @@
+# Frontend review canvas: binds one persistent review thread to the current
+# Harness conversation and adds the review tools plus the right-sidebar canvas.
+- insert:
+    - id: dsh-frontend-review
+      name: dsh-frontend-review

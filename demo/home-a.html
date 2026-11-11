@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>学习概览 · A 方案</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f4f6fa; color: #172033; font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+    .shell { display: grid; grid-template-columns: 248px 1fr; min-height: 900px; }
+    aside { background: #101a2c; color: #dbe5f3; padding: 26px 18px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 15px; margin-bottom: 30px; }
+    .brand-mark { width: 30px; height: 30px; border-radius: 9px; background: #5b8cff; display: grid; place-items: center; color: #fff; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 9px; color: #aab8cc; font-size: 13px; margin: 2px 0; }
+    .nav-item.active { background: #1c2b46; color: #fff; }
+    .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .7; }
+    main { padding: 30px 36px 40px; }
+    .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+    h1 { margin: 0 0 6px; font-size: 29px; letter-spacing: -.5px; }
+    .sub { color: #687385; margin: 0; }
+    .actions { display: flex; gap: 8px; }
+    .btn { border: 1px solid #dfe3e8; border-radius: 8px; background: #fff; padding: 9px 13px; font: inherit; font-size: 13px; cursor: pointer; }
+    .btn.primary { background: #246bfd; border-color: #246bfd; color: #fff; font-weight: 700; }
+    .tabs { display: flex; gap: 6px; border-bottom: 1px solid #dfe3e8; margin-bottom: 18px; }
+    .tab { border: 0; background: transparent; padding: 10px 13px; color: #687385; font: inherit; cursor: pointer; border-bottom: 2px solid transparent; font-size: 13px; }
+    .tab.active { color: #246bfd; border-bottom-color: #246bfd; font-weight: 700; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+    .stat { background: #fff; border: 1px solid #e4e8ef; border-radius: 12px; padding: 16px 18px; }
+    .stat b { display: block; font-size: 24px; margin-bottom: 4px; }
+    .stat span { color: #687385; font-size: 12px; }
+    .grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; }
+    .card { background: #fff; border: 1px solid #e4e8ef; border-radius: 14px; padding: 20px; box-shadow: 0 10px 24px rgba(24, 45, 85, .05); }
+    .card h2 { margin: 0 0 4px; font-size: 16px; }
+    .card > p { margin: 0 0 14px; color: #687385; font-size: 12px; }
+    .course { display: flex; gap: 12px; align-items: center; padding: 11px 0; border-top: 1px solid #eef1f5; }
+    .course:first-of-type { border-top: 0; }
+    .thumb { width: 42px; height: 42px; border-radius: 10px; background: linear-gradient(145deg, #dbe6ff, #b9cdff); flex: 0 0 auto; display: grid; place-items: center; color: #246bfd; font-weight: 800; font-size: 12px; }
+    .course-body { min-width: 0; flex: 1; }
+    .course-body strong { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .course-body span { color: #687385; font-size: 11px; }
+    .progress { width: 76px; height: 6px; border-radius: 999px; background: #e8edf5; overflow: hidden; }
+    .progress i { display: block; height: 100%; width: 64%; background: #246bfd; border-radius: inherit; }
+    .tree { display: flex; flex-direction: column; gap: 8px; }
+    .node { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 9px; background: #f7f9fc; border: 1px solid #edf0f5; font-size: 12px; }
+    .node .dot { width: 8px; height: 8px; border-radius: 50%; background: #9db4df; }
+    .node.done .dot { background: #1fa971; }
+    .node.current { border-color: #b9ccff; background: #f1f6ff; }
+    .note { margin-top: 16px; background: #fff8eb; border: 1px solid #f5dfb6; color: #73510c; border-radius: 10px; padding: 11px 12px; font-size: 12px; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand"><span class="brand-mark">L</span> LearningTree</div>
+      <div class="nav-item active"><span class="nav-dot"></span> 学习概览</div>
+      <div class="nav-item"><span class="nav-dot"></span> 知识树</div>
+      <div class="nav-item"><span class="nav-dot"></span> 练习记录</div>
+      <div class="nav-item"><span class="nav-dot"></span> 设置</div>
+    </aside>
+    <main>
+      <div class="top">
+        <div>
+          <h1>学习概览</h1>
+          <p class="sub">今天继续把「前端性能」这条分支点亮。</p>
+        </div>
+        <div class="actions"><button class="btn">导出笔记</button><button class="btn primary">继续学习</button></div>
+      </div>
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-panel="overview">概览</button>
+        <button class="tab" data-panel="progress">学习进度</button>
+        <button class="tab" data-panel="notes">笔记</button>
+      </div>
+      <section class="panel active" id="panel-overview">
+        <div class="stats">
+          <div class="stat"><b>18</b><span>已掌握知识点</span></div>
+          <div class="stat"><b>4</b><span>连续学习天数</span></div>
+          <div class="stat"><b>72%</b><span>本周完成度</span></div>
+          <div class="stat"><b>2</b><span>待复习</span></div>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <h2>继续学习</h2>
+            <p>根据你的知识树，推荐先完成这三个节点。</p>
+            <div class="course"><div class="thumb">01</div><div class="course-body"><strong>浏览器渲染流程</strong><span>前端性能 · 12 分钟</span></div><div class="progress"><i></i></div></div>
+            <div class="course"><div class="thumb">02</div><div class="course-body"><strong>重排与重绘</strong><span>前端性能 · 8 分钟</span></div><div class="progress"><i style="width:32%"></i></div></div>
+            <div class="course"><div class="thumb">03</div><div class="course-body"><strong>事件循环与调度</strong><span>JavaScript · 15 分钟</span></div><div class="progress"><i style="width:12%"></i></div></div>
+          </div>
+          <div class="card">
+            <h2>知识树</h2>
+            <p>前端性能分支</p>
+            <div class="tree">
+              <div class="node done"><span class="dot"></span> 网络基础</div>
+              <div class="node done"><span class="dot"></span> 关键渲染路径</div>
+              <div class="node current"><span class="dot"></span> 浏览器渲染流程</div>
+              <div class="node"><span class="dot"></span> 重排与重绘</div>
+              <div class="node"><span class="dot"></span> 性能指标</div>
+            </div>
+            <div class="note">下一个节点完成后，会解锁「性能指标」练习。</div>
+          </div>
+        </div>
+      </section>
+      <section class="panel" id="panel-progress"><div class="card"><h2>学习进度</h2><p>本周完成 18 个节点，较上周 +4。</p></div></section>
+      <section class="panel" id="panel-notes"><div class="card"><h2>最近笔记</h2><p>「重排会触发布局计算，重绘只影响绘制阶段。」</p></div></section>
+    </main>
+  </div>
+  <script>
+    const tabs = document.querySelectorAll('.tab')
+    const panels = document.querySelectorAll('.panel')
+    tabs.forEach((tab) => tab.addEventListener('click', () => {
+      tabs.forEach((entry) => entry.classList.toggle('active', entry === tab))
+      panels.forEach((panel) => panel.classList.toggle('active', panel.id === 'panel-' + tab.dataset.panel))
+    }))
+  </script>
+</body>
+</html>

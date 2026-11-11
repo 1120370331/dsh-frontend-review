@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>学习概览 · B 方案</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f7f4ee; color: #22201c; font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+    .topbar { height: 66px; display: flex; align-items: center; justify-content: space-between; padding: 0 38px; background: #fffdf8; border-bottom: 1px solid #e8e1d5; }
+    .brand { font-weight: 800; letter-spacing: -.3px; display: flex; align-items: center; gap: 10px; }
+    .brand i { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 50%; background: #d96c3f; color: #fff; font-style: normal; font-size: 13px; }
+    .topnav { display: flex; gap: 8px; align-items: center; }
+    .topnav button { border: 0; background: transparent; padding: 8px 12px; font: inherit; font-size: 13px; border-radius: 999px; cursor: pointer; color: #736d63; }
+    .topnav button.active { background: #2d2a25; color: #fff; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: #eadbc9; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #8b5e3c; }
+    main { padding: 32px 38px 44px; }
+    .hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; margin-bottom: 26px; }
+
+    h1 { font-family: Georgia, "Songti SC", serif; font-weight: 500; font-size: 37px; letter-spacing: -.8px; margin: 0 0 8px; }
+    .hero p { margin: 0; color: #736d63; font-size: 14px; }
+    .streak { background: #2d2a25; color: #fff; border-radius: 16px; padding: 16px 20px; min-width: 164px; }
+    .streak b { display: block; font-family: Georgia, serif; font-size: 30px; }
+    .streak span { color: #cfc8bd; font-size: 11px; }
+    .layout { display: grid; grid-template-columns: 1.5fr 1fr; gap: 22px; }
+    .board { background: #fffdf8; border: 1px solid #e8e1d5; border-radius: 18px; padding: 22px; }
+    .board h2 { font-family: Georgia, serif; font-weight: 500; font-size: 20px; margin: 0 0 3px; }
+    .board .hint { color: #8a8378; font-size: 12px; margin: 0 0 18px; }
+    .path { display: flex; gap: 12px; }
+    .path-item { flex: 1; min-width: 0; border-radius: 12px; background: #f3ede4; padding: 13px 12px; border: 1px solid transparent; }
+    .path-item.active { background: #fbece2; border-color: #e7b79c; }
+    .path-item .step { font-size: 10px; color: #b05b35; font-weight: 800; letter-spacing: .8px; margin-bottom: 8px; }
+    .path-item strong { display: block; font-size: 13px; margin-bottom: 4px; }
+    .path-item span { color: #736d63; font-size: 11px; }
+    .list { margin-top: 20px; }
+    .row { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 12px 0; border-top: 1px solid #eee7dc; }
+    .row:first-child { border-top: 0; }
+    .index { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #d8cec0; display: grid; place-items: center; font-size: 10px; color: #8a8378; }
+    .row.done .index { background: #2f7d5b; border-color: #2f7d5b; color: #fff; }
+    .row strong { display: block; font-size: 13px; }
+    .row small { color: #8a8378; font-size: 11px; }
+    .time { color: #8a8378; font-size: 11px; }
+    .side { display: flex; flex-direction: column; gap: 16px; }
+    .note { background: #fbece2; border: 1px solid #e7b79c; border-radius: 18px; padding: 20px; }
+    .note h3 { font-family: Georgia, serif; font-size: 18px; margin: 0 0 8px; font-weight: 500; }
+    .note p { margin: 0; color: #6d5a4d; font-size: 12px; line-height: 1.65; }
+    .mini { background: #fffdf8; border: 1px solid #e8e1d5; border-radius: 18px; padding: 20px; }
+    .mini h3 { margin: 0 0 10px; font-family: Georgia, serif; font-weight: 500; font-size: 18px; }
+    .tag { display: inline-flex; padding: 4px 9px; border-radius: 999px; background: #f3ede4; color: #736d63; font-size: 11px; margin: 0 5px 6px 0; }
+    .cta { margin-top: 18px; width: 100%; border: 0; border-radius: 999px; background: #d96c3f; color: #fff; padding: 12px; font: inherit; font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><i>L</i> LearningTree</div>
+    <div class="topnav"><button class="active">学习</button><button>知识树</button><button>笔记</button><div class="avatar">RL</div></div>
+  </div>
+  <main>
+    <div class="hero">
+      <div>
+        <h1>把今天学成一条线。</h1>
+        <p>从浏览器渲染流程开始，沿着知识树继续往下走。</p>
+      </div>
+      <div class="streak"><b>4 天</b><span>连续学习 · 超过 68% 的学习者</span></div>
+    </div>
+    <div class="layout">
+      <section class="board">
+        <h2>今日路径</h2>
+        <p class="hint">三个节点，大约 35 分钟。</p>
+        <div class="path">
+          <div class="path-item active"><div class="step">STEP 01</div><strong>浏览器渲染流程</strong><span>12 分钟 · 进行中</span></div>
+          <div class="path-item"><div class="step">STEP 02</div><strong>重排与重绘</strong><span>8 分钟</span></div>
+          <div class="path-item"><div class="step">STEP 03</div><strong>事件循环</strong><span>15 分钟</span></div>
+        </div>
+        <div class="list">
+          <div class="row done"><div class="index">✓</div><div><strong>网络基础</strong><small>HTTP 缓存与请求生命周期</small></div><span class="time">昨天</span></div>
+          <div class="row done"><div class="index">✓</div><div><strong>关键渲染路径</strong><small>DOM、CSSOM 与渲染树</small></div><span class="time">昨天</span></div>
+          <div class="row"><div class="index">03</div><div><strong>浏览器渲染流程</strong><small>布局、绘制与合成</small></div><span class="time">今天</span></div>
+          <div class="row"><div class="index">04</div><div><strong>重排与重绘</strong><small>哪些属性会触发什么</small></div><span class="time">待开始</span></div>
+        </div>
+      </section>
+      <div class="side">
+        <section class="note"><h3>今天的一句话</h3><p>先把「关键渲染路径」里的布局阶段真正弄懂，再去看性能指标，会轻松很多。</p></section>
+        <section class="mini"><h3>正在解锁</h3><div><span class="tag">性能</span><span class="tag">渲染</span><span class="tag">浏览器</span></div><p style="color:#8a8378;font-size:12px;margin:0">完成当前节点后，解锁 6 个关联知识点。</p><button class="cta">继续学习</button></section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+
+
