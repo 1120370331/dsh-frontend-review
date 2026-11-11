@@ -1,6 +1,6 @@
 {
   "name": "dsh-frontend-review",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Frontend review canvas for DeepSeek Harness: pin page versions on an infinite canvas, annotate screenshots, and route visual feedback back into the bound conversation.",
   "type": "module",
   "main": "index.js",

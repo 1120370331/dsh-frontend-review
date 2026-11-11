@@ -27,6 +27,15 @@
   const annotationPopoverTitle = document.getElementById('annotation-popover-title')
   const annotationPopoverStatus = document.getElementById('annotation-popover-status')
   const annotationPopoverDelete = document.getElementById('delete-annotation-popover')
+  const compareButton = document.getElementById('toggle-compare')
+  const comparePicker = document.getElementById('compare-picker')
+  const compareOptions = document.getElementById('compare-options')
+  const compareCount = document.getElementById('compare-count')
+  const compareConfirm = document.getElementById('confirm-compare')
+  const compare = document.getElementById('compare')
+  const compareGrid = document.getElementById('compare-grid')
+  const compareSub = document.getElementById('compare-sub')
+  const compareFoot = document.getElementById('compare-foot')
   const bar = document.querySelector('.bar')
 
   let zoom = 1
@@ -52,6 +61,9 @@
   let toastTimer = null
   let frameReady = false
   let contextItems = []
+  const compareSelection = new Set()
+  let compareIds = []
+  let compareDrawing = null
 
   const escape = (value) => String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -359,15 +371,28 @@
     })
   }
 
+  function updateCompareToolButtons() {
+    document.querySelectorAll('[data-ctool]').forEach((button) => {
+      button.dataset.active = String(button.dataset.ctool === tool)
+    })
+  }
+
   function setTool(next) {
     tool = next
     stage.dataset.tool = tool
     preview.dataset.mode = tool
+    compare.dataset.mode = tool
     if (preview.dataset.open === 'true') {
       if (tool === 'component') enablePicker(true)
       else if (pickerArmed) enablePicker(false)
     }
     updatePreviewToolButtons()
+    updateCompareToolButtons()
+    if (compare.dataset.open === 'true') {
+      compareFoot.textContent = tool === 'select'
+        ? '当前工具：浏览。点批注图形可选中；切到批注工具后可在一列上圈画。'
+        : `当前工具：${kindLabel(tool)}。在任意一列上拖动，批注会落到该列对应的版本。`
+    }
     renderInspector()
   }
 
@@ -447,6 +472,7 @@
     renderWorld()
     renderOutline()
     renderPreviewOverlay()
+    if (compare.dataset.open === 'true') renderCompare()
     renderInspector()
     if (selectedAnn) showAnnotationPopover(selectedAnn)
   }
@@ -563,11 +589,13 @@
       ${annotationSvg({ id: 'draft', kind: drawing.kind, geometry: drawing.geometry, color: drawing.color })}`
   }
 
-  async function createAnnotation(kind, geometry, element) {
-    if (!selected) {
+  async function createAnnotation(kind, geometry, element, versionIdOverride) {
+    const targetVersionId = versionIdOverride || selected
+    if (!targetVersionId) {
       showToast('先选择一个页面版本', 'error')
       return
     }
+    selected = targetVersionId
     try {
       const withElement = element ? { element } : {}
       const result = await api('/api/annotation', {
@@ -575,7 +603,7 @@
         body: {
           reviewId: data.reviewId,
           annotation: {
-            versionId: selected,
+            versionId: targetVersionId,
             kind,
             geometry,
             text: '',
@@ -591,6 +619,7 @@
       if (selectedAnn) selectedAnnotations.add(selectedAnn)
       renderAll()
       if (preview.dataset.open === 'true') renderPreviewOverlay()
+      if (compare.dataset.open === 'true') renderCompare()
       inspector.dataset.open = 'true'
       if (selectedAnn) showAnnotationPopover(selectedAnn)
       showToast(kind === 'note' ? '已加一条批注，请在右侧写内容' : '已记录批注，请在右侧写内容')
@@ -611,6 +640,7 @@
       selectedAnn = [...selectedAnnotations].at(-1) ?? null
       hideAnnotationPopover()
       renderAll()
+      if (compare.dataset.open === 'true') renderCompare()
       showToast('已删除草稿')
     } catch (error) {
       showToast(error.message, 'error')
@@ -705,6 +735,7 @@
       selectedAnn = null
       hideAnnotationPopover()
       renderAll()
+      if (compare.dataset.open === 'true') renderCompare()
       showToast(`已删除 ${ids.length} 条草稿`)
     } catch (error) {
       showToast(error.message, 'error')
@@ -914,6 +945,8 @@
   // Initial render.
   renderAll()
   inspector.dataset.open = 'true'
+  updateCompareToolButtons()
+  layoutCompareBounds()
   requestAnimationFrame(() => {
     if (!fitted) {
       fitted = true
@@ -1173,6 +1206,7 @@
       hideAnnotationPopover()
       renderWorld()
       renderPreviewOverlay()
+      if (compare.dataset.open === 'true') renderCompare()
       renderInspector()
       return
     }
@@ -1203,6 +1237,7 @@
       }
       renderWorld()
       renderPreviewOverlay()
+      if (compare.dataset.open === 'true') renderCompare()
       renderInspector()
       return
     }
@@ -1266,14 +1301,18 @@
     inspector.dataset.open = 'false'
     document.getElementById('toggle-inspector').dataset.on = 'false'
     layoutPreviewBounds()
+    layoutCompareBounds()
     if (preview.dataset.open === 'true') layoutPreview()
+    if (compare.dataset.open === 'true') renderCompare()
   })
   document.getElementById('toggle-inspector').addEventListener('click', () => {
     const open = inspector.dataset.open !== 'true'
     inspector.dataset.open = String(open)
     document.getElementById('toggle-inspector').dataset.on = String(open)
     layoutPreviewBounds()
+    layoutCompareBounds()
     if (preview.dataset.open === 'true') layoutPreview()
+    if (compare.dataset.open === 'true') renderCompare()
   })
   annToggle.addEventListener('click', () => {
     showAnnotations = !showAnnotations
@@ -1282,22 +1321,28 @@
     if (!showAnnotations) hideAnnotationPopover()
     renderWorld()
     renderPreviewOverlay()
+    if (compare.dataset.open === 'true') renderCompare()
     showToast(showAnnotations ? '已显示全部批注' : '已隐藏全部批注')
   })
   window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
-      if (preview.dataset.open === 'true') closePreview()
+      if (comparePicker.dataset.open === 'true') closeComparePicker()
+      else if (compare.dataset.open === 'true') exitCompare()
+      else if (preview.dataset.open === 'true') closePreview()
       else inspector.dataset.open = 'false'
     }
   })
   window.addEventListener('resize', () => {
     applyTransform()
     layoutPreviewBounds()
+    layoutCompareBounds()
     if (preview.dataset.open === 'true') layoutPreview()
+    if (compare.dataset.open === 'true') renderCompare()
   })
 
   // Preview overlay: browse the real page, or draw directly on top of it.
   function openPreview(node, picker) {
+    if (compare.dataset.open === 'true') exitCompare()
     previewNode = node
     selected = node.versionId
     selectedAnn = null
@@ -1526,6 +1571,196 @@
     ])
   }
 
+  // Comparison mode: pick 2–4 fixed versions and annotate each column.
+  function renderComparePicker() {
+    const nodes = data.nodes
+    compareOptions.innerHTML = nodes.map((node) => `<label class="compare-option">
+      <input type="checkbox" data-compare-id="${escape(node.versionId)}" ${compareSelection.has(node.versionId) ? 'checked' : ''}>
+      <span class="compare-thumb" style="background-image:url('${escape(assetUrl(node.versionId))}')"></span>
+      <span class="compare-option-text">
+        <strong>${escape(node.title)} · ${escape(node.variant)} v${node.version}</strong>
+        <span>${node.viewport ? `${node.viewport.width}×${node.viewport.height}` : '固定截图'} · ${statusLabel(node.status)}</span>
+      </span>
+    </label>`).join('')
+    compareCount.textContent = `已选 ${compareSelection.size} 个`
+    compareConfirm.disabled = compareSelection.size < 2 || compareSelection.size > 4
+  }
+
+  function layoutCompareBounds() {
+    const top = Math.round(bar?.getBoundingClientRect().height || 52)
+    const right = inspector.dataset.open === 'true' ? Math.round(inspector.getBoundingClientRect().width || 0) : 0
+    compare.style.top = `${top}px`
+    compare.style.right = `${right}px`
+  }
+
+  function openComparePicker() {
+    if (preview.dataset.open === 'true') closePreview()
+    if (compareIds.length > 0) {
+      compareSelection.clear()
+      for (const id of compareIds) compareSelection.add(id)
+    }
+    renderComparePicker()
+    comparePicker.dataset.open = 'true'
+    comparePicker.setAttribute('aria-hidden', 'false')
+    compareButton.dataset.on = 'true'
+  }
+
+  function closeComparePicker() {
+    comparePicker.dataset.open = 'false'
+    comparePicker.setAttribute('aria-hidden', 'true')
+    compareButton.dataset.on = String(compare.dataset.open === 'true')
+  }
+
+  function renderCompare() {
+    const nodes = compareIds
+      .map((id) => data.nodes.find((node) => node.versionId === id))
+      .filter(Boolean)
+    if (nodes.length === 0) {
+      compareGrid.innerHTML = ''
+      return
+    }
+    compareGrid.style.setProperty('--cols', String(nodes.length))
+    compareGrid.innerHTML = nodes.map((node) => {
+      const annotations = data.annotations.filter((annotation) => annotation.versionId === node.versionId && annotationInRound(annotation))
+      return `<section class="compare-col" data-version-id="${escape(node.versionId)}">
+        <div class="compare-col-head"><strong>${escape(node.title)} · ${escape(node.variant)} v${node.version}</strong><span>${annotations.length} 条批注</span></div>
+        <div class="compare-frame">
+          <img src="${escape(assetUrl(node.versionId))}" alt="${escape(node.title)} ${escape(node.variant)} v${node.version}">
+          <svg class="compare-overlay compare-ann" viewBox="0 0 1000 1000" preserveAspectRatio="none" style="display:${showAnnotations ? 'block' : 'none'}" aria-hidden="true">${annotationContent(annotations)}</svg>
+          <svg class="compare-overlay compare-draw" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+        </div>
+      </section>`
+    }).join('')
+    compareSub.textContent = `${nodes.length} 个版本并排对比 · 可直接圈画批注`
+    compare.dataset.mode = tool
+    updateCompareToolButtons()
+  }
+
+  function enterCompare() {
+    if (compareSelection.size < 2 || compareSelection.size > 4) {
+      showToast('请选择 2–4 个版本', 'error')
+      return
+    }
+    compareIds = [...compareSelection]
+    comparePicker.dataset.open = 'false'
+    comparePicker.setAttribute('aria-hidden', 'true')
+    closePreview()
+    compare.dataset.open = 'true'
+    compare.setAttribute('aria-hidden', 'false')
+    compareButton.dataset.on = 'true'
+    setTool('select')
+    layoutCompareBounds()
+    renderCompare()
+    inspector.dataset.open = 'true'
+    showToast('已进入对比，可在任意一列上圈画', 'info')
+  }
+
+  function exitCompare() {
+    compare.dataset.open = 'false'
+    compare.setAttribute('aria-hidden', 'true')
+    compareButton.dataset.on = 'false'
+    compareGrid.innerHTML = ''
+    hideAnnotationPopover()
+    setTool('select')
+  }
+
+  function comparePoint(layer, event) {
+    return pointIn(layer, event)
+  }
+
+  compareButton.addEventListener('click', () => {
+    if (comparePicker.dataset.open === 'true') {
+      closeComparePicker()
+      return
+    }
+    openComparePicker()
+  })
+  document.getElementById('close-compare-picker').addEventListener('click', closeComparePicker)
+  document.getElementById('cancel-compare-picker').addEventListener('click', closeComparePicker)
+  compareConfirm.addEventListener('click', enterCompare)
+  document.getElementById('exit-compare').addEventListener('click', exitCompare)
+  document.getElementById('reselect-compare').addEventListener('click', openComparePicker)
+  compareOptions.addEventListener('change', (event) => {
+    const checkbox = event.target.closest('[data-compare-id]')
+    if (!checkbox) return
+    if (checkbox.checked) {
+      if (compareSelection.size >= 4) {
+        checkbox.checked = false
+        showToast('最多同时对比 4 个版本', 'info')
+        return
+      }
+      compareSelection.add(checkbox.dataset.compareId)
+    } else {
+      compareSelection.delete(checkbox.dataset.compareId)
+    }
+    compareCount.textContent = `已选 ${compareSelection.size} 个`
+    compareConfirm.disabled = compareSelection.size < 2 || compareSelection.size > 4
+  })
+  compare.querySelector('.compare-actions').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-ctool]')
+    if (button) setTool(button.dataset.ctool)
+  })
+  compareGrid.addEventListener('click', (event) => {
+    const shape = event.target.closest('[data-annotation-id]')
+    if (!shape) return
+    event.stopPropagation()
+    selectAnnotation(shape.dataset.annotationId, event.shiftKey || event.ctrlKey || event.metaKey)
+  })
+  compareGrid.addEventListener('pointerdown', (event) => {
+    if (!compareIds.length || event.button !== 0) return
+    if (!['rect', 'ellipse', 'arrow', 'pen', 'pin', 'note'].includes(tool)) return
+    const column = event.target.closest('.compare-col')
+    const layer = column?.querySelector('.compare-draw')
+    if (!column || !layer) return
+    event.preventDefault()
+    const point = comparePoint(layer, event)
+    const versionId = column.dataset.versionId
+    if (tool === 'note') {
+      createAnnotation('note', { x: point.x, y: point.y, w: 0, h: 0 }, null, versionId)
+      setTool('select')
+      return
+    }
+    if (tool === 'pin') {
+      createAnnotation('pin', { x: point.x, y: point.y, w: 0, h: 0 }, null, versionId)
+      return
+    }
+    layer.setPointerCapture?.(event.pointerId)
+    compareDrawing = {
+      layer,
+      versionId,
+      kind: tool,
+      start: point,
+      points: [point],
+      geometry: { x: point.x, y: point.y, w: 0, h: 0 },
+      color,
+    }
+    layer.innerHTML = annotationContent([{ id: 'compare-draft', kind: tool, geometry: compareDrawing.geometry, color }])
+  })
+  compareGrid.addEventListener('pointermove', (event) => {
+    if (!compareDrawing) return
+    const point = comparePoint(compareDrawing.layer, event)
+    if (compareDrawing.kind === 'pen') {
+      compareDrawing.points.push(point)
+      compareDrawing.geometry = draftGeometry(compareDrawing.start, point, 'pen', compareDrawing.points)
+    } else {
+      compareDrawing.geometry = draftGeometry(compareDrawing.start, point, compareDrawing.kind)
+    }
+    compareDrawing.layer.innerHTML = annotationContent([{ id: 'compare-draft', kind: compareDrawing.kind, geometry: compareDrawing.geometry, color: compareDrawing.color }])
+  })
+  compareGrid.addEventListener('pointerup', () => {
+    if (!compareDrawing) return
+    const current = compareDrawing
+    compareDrawing = null
+    current.layer.innerHTML = ''
+    const g = current.geometry
+    if (current.kind !== 'pen' && Math.abs(g.w) < 0.008 && Math.abs(g.h) < 0.008) return
+    createAnnotation(current.kind, g, null, current.versionId)
+  })
+  compareGrid.addEventListener('pointercancel', () => {
+    if (compareDrawing?.layer) compareDrawing.layer.innerHTML = ''
+    compareDrawing = null
+  })
+
   async function submitFeedback() {
     if (submitting) return
     const drafts = data.annotations.filter((annotation) => annotation.status === 'draft')
@@ -1565,6 +1800,7 @@
       const next = await api(`/api/review?reviewId=${encodeURIComponent(data.reviewId)}`)
       data = next
       renderAll()
+      if (compare.dataset.open === 'true') renderCompare()
       showToast('画布已刷新')
     } catch (error) {
       showToast(error.message, 'error')
