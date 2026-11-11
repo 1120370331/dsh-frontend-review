@@ -27,6 +27,7 @@
   const annotationPopoverTitle = document.getElementById('annotation-popover-title')
   const annotationPopoverStatus = document.getElementById('annotation-popover-status')
   const annotationPopoverDelete = document.getElementById('delete-annotation-popover')
+  const handButton = document.getElementById('toggle-hand')
   const loupeButton = document.getElementById('toggle-loupe')
   const compareButton = document.getElementById('toggle-compare')
   const comparePicker = document.getElementById('compare-picker')
@@ -51,6 +52,8 @@
   let showAnnotations = true
   let fitted = false
   let panning = null
+  let panMoved = false
+  let spaceHeld = false
   let dragging = null
   let suppressClick = false
   const multiSelected = new Set()
@@ -413,6 +416,7 @@
       if (tool === 'component') enablePicker(true)
       else if (pickerArmed) enablePicker(false)
     }
+    handButton.dataset.on = String(tool === 'hand')
     loupeButton.dataset.on = String(tool === 'loupe')
     updatePreviewToolButtons()
     updateCompareToolButtons()
@@ -1075,7 +1079,20 @@
     event.preventDefault()
     selectNode(card.dataset.versionId)
   })
+  function startPan(event) {
+    event.preventDefault()
+    stage.setPointerCapture?.(event.pointerId)
+    panning = { startX: event.clientX, startY: event.clientY, originX: pan.x, originY: pan.y }
+    panMoved = false
+    stage.dataset.panning = 'true'
+    hideLoupe()
+  }
+
   stage.addEventListener('pointerdown', (event) => {
+    if ((tool === 'hand' || spaceHeld || event.button === 1 || (event.altKey && event.button === 0)) && !event.target.closest('button')) {
+      startPan(event)
+      return
+    }
     const layer = event.target.closest('.draw-layer')
     if (layer) {
       startDraw(event, layer)
@@ -1086,9 +1103,9 @@
       startCardDrag(event, head.closest('.card'), head)
       return
     }
+    if (tool === 'loupe') return
     if (event.button !== 0 || event.target.closest('.card') || event.target.closest('button') || event.target.closest('.outline')) return
-    stage.setPointerCapture?.(event.pointerId)
-    panning = { startX: event.clientX, startY: event.clientY, originX: pan.x, originY: pan.y }
+    startPan(event)
   })
   stage.addEventListener('pointermove', (event) => {
     if (tool === 'loupe') {
@@ -1127,6 +1144,7 @@
     const layer = event.target.closest('.draw-layer')
     if (layer) moveDraw(event, layer)
     if (!panning) return
+    if (Math.abs(event.clientX - panning.startX) + Math.abs(event.clientY - panning.startY) > 2) panMoved = true
     pan = {
       x: panning.originX + event.clientX - panning.startX,
       y: panning.originY + event.clientY - panning.startY,
@@ -1137,12 +1155,18 @@
     const layer = event.target.closest('.draw-layer')
     if (layer) endDraw(event, layer)
     if (dragging) finishCardDrag()
+    if (panning && panMoved) {
+      suppressClick = true
+      setTimeout(() => { suppressClick = false }, 350)
+    }
     panning = null
+    stage.dataset.panning = 'false'
   })
   stage.addEventListener('pointercancel', () => {
     drawing = null
     dragging = null
     panning = null
+    stage.dataset.panning = 'false'
   })
   stage.addEventListener('wheel', (event) => {
     event.preventDefault()
@@ -1360,6 +1384,10 @@
     if (preview.dataset.open === 'true') layoutPreview()
     if (compare.dataset.open === 'true') renderCompare()
   })
+  handButton.addEventListener('click', () => {
+    setTool(tool === 'hand' ? 'select' : 'hand')
+    showToast(tool === 'hand' ? '抓手已开启：拖动任意位置移动视角' : '已退出抓手', 'info')
+  })
   loupeButton.addEventListener('click', () => {
     setTool(tool === 'loupe' ? 'select' : 'loupe')
     showToast(tool === 'loupe' ? '移动到页面截图上，查看 2× 局部放大' : '已关闭局部放大', 'info')
@@ -1375,12 +1403,31 @@
     showToast(showAnnotations ? '已显示全部批注' : '已隐藏全部批注')
   })
   window.addEventListener('keydown', (event) => {
+    if (event.code === 'Space' && !event.target?.closest?.('input, textarea, button, [contenteditable="true"]')) {
+      event.preventDefault()
+      if (!spaceHeld) {
+        spaceHeld = true
+        document.body.dataset.spacePan = 'true'
+        hideLoupe()
+      }
+      return
+    }
     if (event.key === 'Escape') {
       if (comparePicker.dataset.open === 'true') closeComparePicker()
       else if (compare.dataset.open === 'true') exitCompare()
       else if (preview.dataset.open === 'true') closePreview()
       else inspector.dataset.open = 'false'
     }
+  })
+  window.addEventListener('keyup', (event) => {
+    if (event.code === 'Space') {
+      spaceHeld = false
+      delete document.body.dataset.spacePan
+    }
+  })
+  window.addEventListener('blur', () => {
+    spaceHeld = false
+    delete document.body.dataset.spacePan
   })
   window.addEventListener('resize', () => {
     applyTransform()

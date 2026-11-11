@@ -58,12 +58,13 @@ button { font: inherit; }
 .zoom-readout { min-width: 42px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 11px; }
 .stage {
   position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; cursor: grab;
+  touch-action: none; overscroll-behavior: none;
   background-color: var(--bg);
   background-image: radial-gradient(circle, color-mix(in srgb, var(--border-strong) 54%, transparent) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 .stage:active { cursor: grabbing; }
-.world { position: absolute; left: 0; top: 0; width: 1px; height: 1px; transform-origin: 0 0; }
+.world { position: absolute; left: 0; top: 0; width: 1px; height: 1px; transform-origin: 0 0; will-change: transform; }
 .section {
   position: absolute; border: 1px dashed color-mix(in srgb, var(--border-strong) 82%, transparent);
   border-radius: 18px; background: color-mix(in srgb, var(--surface) 34%, transparent);
@@ -437,3 +438,13 @@ button { font: inherit; }
 }
 .stage[data-tool="loupe"] .card .shot { cursor: zoom-in; }
 .compare[data-mode="loupe"] .compare-frame { cursor: zoom-in; }
+
+/* hand / viewport panning */
+.stage[data-tool="hand"] { cursor: grab; }
+.stage[data-tool="hand"][data-panning="true"] { cursor: grabbing; }
+.stage[data-tool="hand"] .card,
+.stage[data-tool="hand"] .card * { cursor: inherit; }
+body[data-space-pan="true"] .stage { cursor: grab; }
+body[data-space-pan="true"] .stage .card,
+body[data-space-pan="true"] .stage .card * { cursor: inherit; }
+

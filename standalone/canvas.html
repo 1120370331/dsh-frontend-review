@@ -20,6 +20,7 @@
       </div>
       <div class="toolbar">
         <button class="btn" id="toggle-annotations" type="button" data-on="true">全部批注 显示</button>
+        <button class="btn icon" id="toggle-hand" type="button" data-on="false" title="抓手：拖动任意位置移动视角（空格 / 中键 / Alt+拖动）" aria-label="抓手">✋</button>
         <button class="btn" id="toggle-loupe" type="button" data-on="false">局部放大</button>
         <button class="btn" id="toggle-compare" type="button" data-on="false">对比</button>
         <button class="btn" id="fit" type="button">适配</button>
@@ -31,7 +32,7 @@
     </header>
     <main id="stage" class="stage">
       <div id="world" class="world"></div>
-      <div class="stage-hint" id="stage-hint">拖拽平移 · 滚轮缩放 · 点击页面查看批注</div>
+      <div class="stage-hint" id="stage-hint">空白处拖动 / 空格+拖动 / 中键拖动 平移 · 滚轮缩放 · 点击页面查看批注</div>
       <aside id="outline" class="outline" aria-label="画布结构"></aside>
     </main>
     <aside id="inspector" class="inspector" aria-label="页面详情">
