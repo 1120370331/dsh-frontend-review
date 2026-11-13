@@ -457,3 +457,6 @@ body[data-space-pan="true"] .stage .card * { cursor: inherit; }
 
 body[data-panning="true"] { cursor: grabbing; user-select: none; }
 body[data-panning="true"] .stage { cursor: grabbing; }
+
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+#undo-annotation[data-on="true"] { color: var(--accent); border-color: var(--accent); }

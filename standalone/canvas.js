@@ -29,6 +29,7 @@
   const annotationPopoverTitle = document.getElementById('annotation-popover-title')
   const annotationPopoverStatus = document.getElementById('annotation-popover-status')
   const annotationPopoverDelete = document.getElementById('delete-annotation-popover')
+  const undoButton = document.getElementById('undo-annotation')
   const handButton = document.getElementById('toggle-hand')
   const loupeButton = document.getElementById('toggle-loupe')
   const compareButton = document.getElementById('toggle-compare')
@@ -71,6 +72,8 @@
   const compareSelection = new Set()
   let compareIds = []
   let compareDrawing = null
+  const annotationUndo = []
+  let undoingAnnotation = false
   const LOUPE_SIZE = 224
   const LOUPE_ZOOM = 2
 
@@ -627,6 +630,96 @@
       ${annotationSvg({ id: 'draft', kind: drawing.kind, geometry: drawing.geometry, color: drawing.color })}`
   }
 
+  function annotationSnapshot(annotation) {
+    return {
+      versionId: annotation.versionId,
+      kind: annotation.kind,
+      geometry: { ...annotation.geometry },
+      text: annotation.text,
+      color: annotation.color,
+      ...(annotation.element ? { element: JSON.parse(JSON.stringify(annotation.element)) } : {}),
+    }
+  }
+
+  function pushAnnotationUndo(action) {
+    annotationUndo.push(action)
+    if (annotationUndo.length > 30) annotationUndo.shift()
+    updateUndoButton()
+  }
+
+  function updateUndoButton() {
+    undoButton.disabled = annotationUndo.length === 0 || undoingAnnotation
+    undoButton.dataset.on = String(annotationUndo.length > 0)
+  }
+
+  function refreshAnnotationViews() {
+    renderAll()
+    if (preview.dataset.open === 'true') renderPreviewOverlay()
+    if (compare.dataset.open === 'true') renderCompare()
+  }
+
+  async function undoAnnotation() {
+    if (undoingAnnotation) return
+    const action = annotationUndo.pop()
+    if (!action) {
+      showToast('没有可撤销的批注操作', 'info')
+      return
+    }
+    undoingAnnotation = true
+    updateUndoButton()
+    try {
+      if (action.type === 'create') {
+        const current = data.annotations.find((annotation) => annotation.id === action.annotationId)
+        if (!current) {
+          showToast('这条批注已经不存在', 'info')
+          return
+        }
+        const result = await api('/api/annotation', {
+          method: 'DELETE',
+          body: { reviewId: data.reviewId, annotationId: action.annotationId },
+        })
+        data = result.review
+        selectedAnnotations.delete(action.annotationId)
+        selectedAnn = [...selectedAnnotations].at(-1) ?? null
+        hideAnnotationPopover()
+        refreshAnnotationViews()
+        showToast('已撤销上一条批注')
+      } else if (action.type === 'delete') {
+        let latest
+        for (const snapshot of action.annotations) {
+          latest = await api('/api/annotation', {
+            method: 'POST',
+            body: {
+              reviewId: data.reviewId,
+              annotation: {
+                versionId: snapshot.versionId,
+                kind: snapshot.kind,
+                geometry: snapshot.geometry,
+                text: snapshot.text || '',
+                color: snapshot.color || color,
+                ...(snapshot.element ? { element: snapshot.element } : {}),
+              },
+            },
+          })
+          data = latest.review
+        }
+        const restored = latest?.annotation
+        selected = restored?.versionId || selected
+        selectedAnn = restored?.id ?? null
+        selectedAnnotations.clear()
+        if (selectedAnn) selectedAnnotations.add(selectedAnn)
+        refreshAnnotationViews()
+        showToast(`已恢复 ${action.annotations.length} 条批注`)
+      }
+    } catch (error) {
+      annotationUndo.push(action)
+      showToast(error.message, 'error')
+    } finally {
+      undoingAnnotation = false
+      updateUndoButton()
+    }
+  }
+
   async function createAnnotation(kind, geometry, element, versionIdOverride) {
     const targetVersionId = versionIdOverride || selected
     if (!targetVersionId) {
@@ -652,6 +745,7 @@
       })
       data = result.review
       const created = result.annotation
+      if (created && !undoingAnnotation) pushAnnotationUndo({ type: 'create', annotationId: created.id })
       selectedAnn = created?.id ?? null
       selectedAnnotations.clear()
       if (selectedAnn) selectedAnnotations.add(selectedAnn)
@@ -668,12 +762,16 @@
   }
 
   async function deleteAnnotation(annotationId) {
+    const snapshot = data.annotations.find((annotation) => annotation.id === annotationId)
     try {
       const result = await api('/api/annotation', {
         method: 'DELETE',
         body: { reviewId: data.reviewId, annotationId },
       })
       data = result.review
+      if (snapshot && !undoingAnnotation) {
+        pushAnnotationUndo({ type: 'delete', annotations: [annotationSnapshot(snapshot)] })
+      }
       selectedAnnotations.delete(annotationId)
       selectedAnn = [...selectedAnnotations].at(-1) ?? null
       hideAnnotationPopover()
@@ -760,6 +858,10 @@
       showToast('选中的批注都已提交，不能删除', 'error')
       return
     }
+    const snapshots = ids
+      .map((id) => data.annotations.find((annotation) => annotation.id === id))
+      .filter(Boolean)
+      .map(annotationSnapshot)
     try {
       let latest
       for (const annotationId of ids) {
@@ -769,6 +871,9 @@
         })
       }
       if (latest) data = latest.review
+      if (snapshots.length > 0 && !undoingAnnotation) {
+        pushAnnotationUndo({ type: 'delete', annotations: snapshots })
+      }
       selectedAnnotations.clear()
       selectedAnn = null
       hideAnnotationPopover()
@@ -983,6 +1088,7 @@
   // Initial render.
   renderAll()
   inspector.dataset.open = 'true'
+  updateUndoButton()
   updateCompareToolButtons()
   layoutCompareBounds()
   requestAnimationFrame(() => {
@@ -1422,6 +1528,7 @@
     if (preview.dataset.open === 'true') layoutPreview()
     if (compare.dataset.open === 'true') renderCompare()
   })
+  undoButton.addEventListener('click', undoAnnotation)
   handButton.addEventListener('click', () => {
     setTool(tool === 'hand' ? 'select' : 'hand')
     showToast(tool === 'hand' ? '抓手已开启：拖动任意位置移动视角' : '已退出抓手', 'info')
@@ -1441,6 +1548,16 @@
     showToast(showAnnotations ? '已显示全部批注' : '已隐藏全部批注')
   })
   window.addEventListener('keydown', (event) => {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'z') {
+      const editable = event.target?.closest?.('input, textarea, [contenteditable="true"]')
+      const emptyAnnotationEditor = editable?.tagName === 'TEXTAREA'
+        && (editable.id === 'ann-text' || editable.id === 'annotation-popover-text')
+        && !editable.value.trim()
+      if (editable && !emptyAnnotationEditor) return
+      event.preventDefault()
+      undoAnnotation()
+      return
+    }
     if (event.code === 'Space' && !event.target?.closest?.('input, textarea, button, [contenteditable="true"]')) {
       event.preventDefault()
       if (!spaceHeld) {
@@ -1946,7 +2063,10 @@
       })
       data = result.review
       selectedAnn = null
+      selectedAnnotations.clear()
       summary = ''
+      annotationUndo.length = 0
+      updateUndoButton()
       renderAll()
       const delivered = result.delivery?.status === 'delivered'
       showToast(delivered ? '反馈已提交，对话已继续处理这一轮' : `反馈已保存，但自动唤醒失败：${result.delivery?.error ?? '原会话不在运行'}`, delivered ? 'info' : 'error')
@@ -1962,6 +2082,8 @@
     try {
       const next = await api(`/api/review?reviewId=${encodeURIComponent(data.reviewId)}`)
       data = next
+      annotationUndo.length = 0
+      updateUndoButton()
       renderAll()
       if (compare.dataset.open === 'true') renderCompare()
       showToast('画布已刷新')
