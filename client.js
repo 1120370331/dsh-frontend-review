@@ -620,6 +620,19 @@ window.__ModuleLoader__.load({
         error.status = response.status
         throw error
       }
+      if ((options.method ?? 'GET').toUpperCase() !== 'GET' && typeof BroadcastChannel === 'function') {
+        try {
+          const channel = new BroadcastChannel('dsh-frontend-review-sync')
+          channel.postMessage({
+            type: 'review-changed',
+            reviewId: payload.review?.reviewId || options.body?.reviewId,
+            at: Date.now(),
+          })
+          channel.close()
+        } catch {
+          // Polling remains the fallback when BroadcastChannel is unavailable.
+        }
+      }
       return payload
     }
 
@@ -817,6 +830,45 @@ window.__ModuleLoader__.load({
           notify(reason instanceof Error ? reason.message : String(reason), 'error')
         }
       }, [data?.reviewId, sessionId, notify])
+
+      useEffect(() => {
+        if (!data?.reviewId) return undefined
+        let stopped = false
+        const channel = typeof BroadcastChannel === 'function'
+          ? new BroadcastChannel('dsh-frontend-review-sync')
+          : null
+        const sync = async () => {
+          if (stopped || document.hidden || drawing || submitting) return
+          const active = document.activeElement
+          if (active?.matches?.('input, textarea, [contenteditable="true"]')) return
+          try {
+            const review = await api(`/api/review?reviewId=${encodeURIComponent(data.reviewId)}&sessionId=${encodeURIComponent(sessionId ?? '')}`)
+            if (!stopped && review.revision !== dataRef.current?.revision) setData(review)
+          } catch {
+            // Background sync should never interrupt editing with a toast.
+          }
+        }
+        const onMessage = (event) => {
+          if (event.data?.type !== 'review-changed') return
+          if (event.data.reviewId && event.data.reviewId !== data.reviewId) return
+          sync()
+        }
+        channel?.addEventListener('message', onMessage)
+        const timer = setInterval(sync, 2000)
+        const onVisible = () => {
+          if (!document.hidden) sync()
+        }
+        document.addEventListener('visibilitychange', onVisible)
+        return () => {
+          stopped = true
+          clearInterval(timer)
+          document.removeEventListener('visibilitychange', onVisible)
+          if (channel) {
+            channel.removeEventListener('message', onMessage)
+            channel.close()
+          }
+        }
+      }, [data?.reviewId, sessionId, drawing, submitting])
 
       const fit = useCallback(() => {
         const stage = stageRef.current

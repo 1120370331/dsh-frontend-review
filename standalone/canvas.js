@@ -161,7 +161,22 @@
       error.revision = payload.revision
       throw error
     }
+    if ((options.method ?? 'GET').toUpperCase() !== 'GET') {
+      setTimeout(() => broadcastReviewChange(), 0)
+    }
     return payload
+  }
+
+  const reviewChannel = typeof BroadcastChannel === 'function'
+    ? new BroadcastChannel('dsh-frontend-review-sync')
+    : null
+
+  function broadcastReviewChange() {
+    try {
+      reviewChannel?.postMessage({ type: 'review-changed', reviewId: data.reviewId, at: Date.now() })
+    } catch {
+      // BroadcastChannel is best effort; polling remains the fallback.
+    }
   }
 
   function applyTransform() {
@@ -885,6 +900,14 @@
     }
   }
 
+  function updateAnnotationTextDom(annotationId, text) {
+    const id = CSS.escape(annotationId)
+    const draft = document.querySelector(`[data-draft-id="${id}"] .draft-text span`)
+    if (draft) draft.textContent = text || '（尚未填写文字）'
+    const row = document.querySelector(`.draft[data-annotation-id="${id}"] .draft-text span`)
+    if (row) row.textContent = text || '（没有文字）'
+  }
+
   async function saveText(annotationId, text) {
     try {
       const result = await api('/api/annotation', {
@@ -892,6 +915,7 @@
         body: { reviewId: data.reviewId, annotation: { id: annotationId, text } },
       })
       data = result.review
+      updateAnnotationTextDom(annotationId, text)
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -2078,18 +2102,48 @@
     }
   }
 
-  async function refresh() {
+  function isEditingAnnotationField() {
+    const active = document.activeElement
+    return Boolean(active?.matches?.('input, textarea, [contenteditable="true"]'))
+  }
+
+  let syncingReview = false
+
+  async function syncReview({ silent = false } = {}) {
+    if (syncingReview || !data?.reviewId) return
+    if (silent && (document.hidden || dragging || drawing || compareDrawing || previewDrawing || submitting || isEditingAnnotationField())) return
+    syncingReview = true
     try {
       const next = await api(`/api/review?reviewId=${encodeURIComponent(data.reviewId)}`)
+      if (next.revision === data.revision) return
       data = next
       annotationUndo.length = 0
       updateUndoButton()
       renderAll()
+      if (preview.dataset.open === 'true') renderPreviewOverlay()
       if (compare.dataset.open === 'true') renderCompare()
-      showToast('画布已刷新')
+      if (selectedAnn) showAnnotationPopover(selectedAnn)
+      else hideAnnotationPopover()
+      if (!silent) showToast('画布已刷新')
     } catch (error) {
-      showToast(error.message, 'error')
+      if (!silent) showToast(error.message, 'error')
+    } finally {
+      syncingReview = false
     }
   }
+
+  async function refresh() {
+    return syncReview({ silent: false })
+  }
+
+  reviewChannel?.addEventListener('message', (event) => {
+    if (event.data?.type !== 'review-changed') return
+    if (event.data.reviewId && data?.reviewId && event.data.reviewId !== data.reviewId) return
+    syncReview({ silent: true })
+  })
+  setInterval(() => syncReview({ silent: true }), 2000)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) syncReview({ silent: true })
+  })
 })()
 
