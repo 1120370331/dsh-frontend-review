@@ -32,7 +32,7 @@
     </header>
     <main id="stage" class="stage">
       <div id="world" class="world"></div>
-      <div class="stage-hint" id="stage-hint">空白处拖动 / 空格+拖动 / 中键拖动 平移 · 滚轮缩放 · 点击页面查看批注</div>
+      <div class="stage-hint" id="stage-hint">非页面区域拖动 / 空格+拖动 / 中键拖动 平移 · 滚轮缩放 · 双击页面大屏批注</div>
       <aside id="outline" class="outline" aria-label="画布结构"></aside>
     </main>
     <aside id="inspector" class="inspector" aria-label="页面详情">
@@ -64,6 +64,7 @@
       </header>
       <div class="preview-stage" id="preview-stage">
         <div class="preview-frame-wrap" id="preview-frame-wrap">
+          <img id="preview-image" class="preview-image" alt="">
           <iframe id="preview-frame" title="页面互动预览" sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>
           <svg id="preview-annotations" class="preview-overlay preview-ann" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
           <svg id="preview-draw" class="preview-overlay preview-draw" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>

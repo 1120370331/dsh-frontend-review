@@ -448,3 +448,12 @@ body[data-space-pan="true"] .stage { cursor: grab; }
 body[data-space-pan="true"] .stage .card,
 body[data-space-pan="true"] .stage .card * { cursor: inherit; }
 
+
+/* large-screen annotation view */
+.preview-image { display: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; background: #fff; }
+.preview[data-view="annotate"] .preview-image { display: block; }
+.preview[data-view="annotate"] #preview-frame { display: none; }
+.preview[data-view="annotate"] .preview-frame-wrap { background: #fff; }
+
+body[data-panning="true"] { cursor: grabbing; user-select: none; }
+body[data-panning="true"] .stage { cursor: grabbing; }

@@ -14,11 +14,13 @@
   const annToggle = document.getElementById('toggle-annotations')
   const preview = document.getElementById('preview')
   const previewFrame = document.getElementById('preview-frame')
+  const previewImage = document.getElementById('preview-image')
   const previewWrap = document.getElementById('preview-frame-wrap')
   const previewTitle = document.getElementById('preview-title')
   const previewSub = document.getElementById('preview-sub')
   const previewFoot = document.getElementById('preview-foot')
   const pickButton = document.getElementById('pick-component')
+  const previewSelectButton = document.querySelector('.preview-actions [data-ptool="select"]')
   const previewAnn = document.getElementById('preview-annotations')
   const previewDraw = document.getElementById('preview-draw')
   const contextMenu = document.getElementById('context-menu')
@@ -257,6 +259,7 @@
         <i class="status-dot" data-status="${escape(node.status)}"></i>
         <div class="card-name"><strong>${escape(node.title)}</strong><em>${escape(node.variant)}</em></div>
         <span class="version">v${node.version}</span>
+        <button class="card-action" type="button" data-action="annotate" data-version-id="${escape(node.versionId)}">大屏</button>
         ${canPreview ? `<button class="card-action" type="button" data-action="preview" data-version-id="${escape(node.versionId)}">互动</button>` : ''}
       </header>
       <div class="card-body">${shot}</div>
@@ -361,6 +364,7 @@
       <div class="selected-page">
         <strong>${escape(node.title)} · ${escape(node.variant)} v${node.version}</strong>
         <span>${node.viewport ? `${node.viewport.width}×${node.viewport.height}` : '未知视口'} · ${statusLabel(node.status)}${node.hasHtml ? ' · 可选取组件' : node.sourceUrl ? ' · 跨域实时页' : ''}</span>
+        <button type="button" class="btn" data-action="annotate" data-version-id="${escape(node.versionId)}">进入大屏批注</button>
         ${node.hasHtml || node.sourceUrl ? `<button type="button" class="btn" data-action="preview" data-version-id="${escape(node.versionId)}">进入页面互动</button>` : ''}
       </div>
       ${ann ? `
@@ -1000,6 +1004,13 @@
       selectAnnotation(annotationShape.dataset.annotationId, event.shiftKey || event.ctrlKey || event.metaKey)
       return
     }
+    const annotateButton = event.target.closest('[data-action="annotate"]')
+    if (annotateButton) {
+      event.stopPropagation()
+      const node = data.nodes.find((entry) => entry.versionId === annotateButton.dataset.versionId)
+      if (node) openPreview(node, false, 'annotate')
+      return
+    }
     const previewButton = event.target.closest('[data-action="preview"]')
     if (previewButton) {
       event.stopPropagation()
@@ -1026,17 +1037,21 @@
         toggleMulti(card.dataset.versionId)
         return
       }
-      const insideBody = event.target.closest('.card-body')
-      if (insideBody && tool === 'select') {
-        const node = data.nodes.find((entry) => entry.versionId === card.dataset.versionId)
-        if (node) {
-          openPreview(node, false)
-          return
-        }
-      }
       selectNode(card.dataset.versionId)
     }
   })
+  stage.addEventListener('dblclick', (event) => {
+    if (suppressClick || tool === 'hand' || spaceHeld) return
+    if (event.target.closest('button') || event.target.closest('[data-annotation-id]')) return
+    const card = event.target.closest('.card')
+    if (!card) return
+    const node = data.nodes.find((entry) => entry.versionId === card.dataset.versionId)
+    if (!node) return
+    event.preventDefault()
+    event.stopPropagation()
+    openPreview(node, false, 'annotate')
+  })
+
   stage.addEventListener('contextmenu', (event) => {
     event.preventDefault()
     const groupLabel = event.target.closest('.group-label')
@@ -1081,15 +1096,32 @@
   })
   function startPan(event) {
     event.preventDefault()
-    stage.setPointerCapture?.(event.pointerId)
+    try { stage.setPointerCapture(event.pointerId) } catch {}
     panning = { startX: event.clientX, startY: event.clientY, originX: pan.x, originY: pan.y }
     panMoved = false
+    drawing = null
+    dragging = null
     stage.dataset.panning = 'true'
+    document.body.dataset.panning = 'true'
     hideLoupe()
   }
 
+  function endPan() {
+    if (!panning) return
+    if (panMoved) {
+      suppressClick = true
+      setTimeout(() => { suppressClick = false }, 350)
+    }
+    panning = null
+    stage.dataset.panning = 'false'
+    delete document.body.dataset.panning
+  }
+
   stage.addEventListener('pointerdown', (event) => {
-    if ((tool === 'hand' || spaceHeld || event.button === 1 || (event.altKey && event.button === 0)) && !event.target.closest('button')) {
+    const onCard = Boolean(event.target.closest('.card'))
+    const onControl = Boolean(event.target.closest('button, .outline'))
+    if ((event.button === 0 || event.button === 1) && !onControl
+      && (tool === 'hand' || spaceHeld || event.button === 1 || (event.altKey && event.button === 0) || !onCard)) {
       startPan(event)
       return
     }
@@ -1103,9 +1135,6 @@
       startCardDrag(event, head.closest('.card'), head)
       return
     }
-    if (tool === 'loupe') return
-    if (event.button !== 0 || event.target.closest('.card') || event.target.closest('button') || event.target.closest('.outline')) return
-    startPan(event)
   })
   stage.addEventListener('pointermove', (event) => {
     if (tool === 'loupe') {
@@ -1143,7 +1172,24 @@
     }
     const layer = event.target.closest('.draw-layer')
     if (layer) moveDraw(event, layer)
+  })
+  stage.addEventListener('pointerup', (event) => {
+    const layer = event.target.closest('.draw-layer')
+    if (layer) endDraw(event, layer)
+    if (dragging) finishCardDrag()
+    endPan()
+  })
+  stage.addEventListener('pointercancel', () => {
+    drawing = null
+    dragging = null
+    endPan()
+  })
+  window.addEventListener('pointermove', (event) => {
     if (!panning) return
+    if (event.buttons === 0) {
+      endPan()
+      return
+    }
     if (Math.abs(event.clientX - panning.startX) + Math.abs(event.clientY - panning.startY) > 2) panMoved = true
     pan = {
       x: panning.originX + event.clientX - panning.startX,
@@ -1151,23 +1197,9 @@
     }
     applyTransform()
   })
-  stage.addEventListener('pointerup', (event) => {
-    const layer = event.target.closest('.draw-layer')
-    if (layer) endDraw(event, layer)
-    if (dragging) finishCardDrag()
-    if (panning && panMoved) {
-      suppressClick = true
-      setTimeout(() => { suppressClick = false }, 350)
-    }
-    panning = null
-    stage.dataset.panning = 'false'
-  })
-  stage.addEventListener('pointercancel', () => {
-    drawing = null
-    dragging = null
-    panning = null
-    stage.dataset.panning = 'false'
-  })
+  window.addEventListener('pointerup', endPan)
+  window.addEventListener('pointercancel', endPan)
+  window.addEventListener('blur', endPan)
   stage.addEventListener('wheel', (event) => {
     event.preventDefault()
     hideLoupe()
@@ -1258,6 +1290,12 @@
     }
     if (event.target.closest('[data-action="ungroup"]')) {
       await ungroup(event.target.closest('[data-action="ungroup"]').dataset.groupId)
+      return
+    }
+    const annotateButton = event.target.closest('[data-action="annotate"]')
+    if (annotateButton) {
+      const node = data.nodes.find((entry) => entry.versionId === annotateButton.dataset.versionId)
+      if (node) openPreview(node, false, 'annotate')
       return
     }
     const previewButton = event.target.closest('[data-action="preview"]')
@@ -1438,40 +1476,56 @@
   })
 
   // Preview overlay: browse the real page, or draw directly on top of it.
-  function openPreview(node, picker) {
+  function openPreview(node, picker, view = 'interactive') {
+    const annotate = view === 'annotate'
     if (compare.dataset.open === 'true') exitCompare()
     previewNode = node
     selected = node.versionId
     selectedAnn = null
     selectedAnnotations.clear()
     hideAnnotationPopover()
-    pickerArmed = !!picker
-    tool = picker ? 'component' : 'select'
+    pickerArmed = !!picker && !annotate
+    tool = annotate ? 'rect' : picker ? 'component' : 'select'
     preview.dataset.mode = tool
-    previewNode = node
-    previewTitle.textContent = `${node.title} · ${node.variant} v${node.version}`
-    previewSub.textContent = node.hasHtml ? '保存的 HTML 快照 · 浏览模式可操作页面，批注工具可直接圈画' : '实时页面 · 跨域页面可浏览；批注直接画在预览上'
-    previewFoot.textContent = node.hasHtml
-      ? '浏览模式可直接点击页面；选择批注工具后，在预览上拖动即可。'
-      : '跨域实时页面不能选组件；可用框选/圈选直接在预览上批注。'
+    preview.dataset.view = annotate ? 'annotate' : 'interactive'
+    previewTitle.textContent = annotate
+      ? `大屏批注 · ${node.title} · ${node.variant} v${node.version}`
+      : `${node.title} · ${node.variant} v${node.version}`
+    previewSub.textContent = annotate
+      ? '固定截图铺满大屏，直接圈画；右侧写批注'
+      : node.hasHtml ? '保存的 HTML 快照 · 浏览模式可操作页面，批注工具可直接圈画' : '实时页面 · 跨域页面可浏览；批注直接画在预览上'
+    previewFoot.textContent = annotate
+      ? '大屏批注模式：用顶部工具在截图上拖动，批注会立即保存到当前版本。'
+      : node.hasHtml
+        ? '浏览模式可直接点击页面；选择批注工具后，在预览上拖动即可。'
+        : '跨域实时页面不能选组件；可用框选/圈选直接在预览上批注。'
     preview.dataset.open = 'true'
     preview.setAttribute('aria-hidden', 'false')
+    previewImage.src = assetUrl(node.versionId)
+    previewImage.alt = `${node.title} ${node.variant} v${node.version}`
+    pickButton.style.display = annotate ? 'none' : ''
+    previewSelectButton.style.display = annotate ? 'none' : ''
     frameReady = false
-    previewFrame.src = node.hasHtml ? htmlUrl(node.versionId) : (node.sourceUrl || 'about:blank')
+    if (annotate) previewFrame.src = 'about:blank'
+    else previewFrame.src = node.hasHtml ? htmlUrl(node.versionId) : (node.sourceUrl || 'about:blank')
     layoutPreviewBounds()
     layoutPreview()
     renderPreviewOverlay()
     renderInspector()
     updatePreviewToolButtons()
-    if (picker) setTimeout(() => setTool('component'), 80)
+    if (!annotate && picker) setTimeout(() => setTool('component'), 80)
   }
 
   function closePreview() {
     preview.dataset.open = 'false'
+    preview.dataset.view = 'interactive'
     preview.setAttribute('aria-hidden', 'true')
     pickerArmed = false
     pickButton.dataset.on = 'false'
     pickButton.textContent = '选择组件'
+    pickButton.style.display = ''
+    previewSelectButton.style.display = ''
+    previewImage.removeAttribute('src')
     previewFrame.src = 'about:blank'
     previewNode = null
     frameReady = false
@@ -1623,6 +1677,7 @@
     const group = (data.groups ?? []).find((entry) => entry.nodeIds.includes(node.versionId))
     selectNode(node.versionId, event.shiftKey || event.ctrlKey || event.metaKey)
     const items = [
+      { label: '进入大屏批注', action: () => openPreview(node, false, 'annotate') },
       { label: '进入页面预览', action: () => openPreview(node, false) },
       ...(node.hasHtml ? [{ label: '进入并选择组件', action: () => openPreview(node, true) }] : []),
       { label: '在这个页面加批注', action: () => { selected = node.versionId; createAnnotation('note', { x: 0.5, y: 0.5, w: 0, h: 0 }) } },
