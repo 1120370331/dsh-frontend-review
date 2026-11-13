@@ -28,24 +28,144 @@
 - `review_publish` 以相同的 `pageKey` / `variantKey` 发布新固定版本，旧版保留并显示在下方；
 - 用户确认解决后，批次进入 `已确认`。
 
-## 安装
+## 安装到 DeepSeek Harness
 
-这是一个 DeepSeek Harness bundle 插件。先克隆仓库：
+这是一个 **DeepSeek Harness bundle 插件 + Skill**，不是独立的网页应用。安装分三步：拿到仓库、把它注册进一个 Harness profile、重启 Harness。
+
+### 前置条件
+
+- 已安装 DeepSeek Harness Desktop 或 `dsh web`；
+- 已安装 Git；
+- 用 `url` 来源截图时需要本机 Chrome 或 Edge（见下方 `BROWSER_NOT_FOUND`）；
+- 手动安装需要 Node.js 20+ 和 pnpm；使用 Harness 插件管理面板时按 Harness 自带运行时即可。
+
+### 1. 克隆仓库
 
 ```powershell
 git clone https://github.com/1120370331/dsh-frontend-review.git
 cd dsh-frontend-review
 ```
 
-然后在 Harness 里通过 `plugin_manager` 安装本地 bundle，`target` 指向仓库根目录：
+记下这个目录的绝对路径，例如：
 
 ```text
-plugin_manager action=install_bundle target="C:\path\to\dsh-frontend-review"
+C:\Users\you\projects\dsh-frontend-review
 ```
 
-安装后启用插件并**刷新/重新加载一次 Harness 界面**，让客户端模块进入 boot manifest；之后打开任意会话，输入框下方会出现「评审」按钮，右侧栏会出现「前端评审」标签页。
+### 2. 注册到 Harness profile
 
-> 这个仓库目前没有发布到 npm；安装的是本地克隆目录。Harness 版本需要支持 `plugin_manager` 的 bundle patch 与 client module 加载。
+Harness 的插件按 profile 隔离。Desktop 默认使用 `desktop` profile；`dsh web` 通常使用 `web` profile。注册方式二选一。
+
+#### 方式 A：Harness 插件管理面板（推荐）
+
+打开 Harness 的插件管理/设置中的插件入口，选择安装本地 bundle，把目标指向刚克隆的仓库目录。不同 Harness 版本的入口名称可能是「插件」「扩展」或「Plugin Manager」。
+
+如果你的 Harness 提供 `plugin_manager` 工具，也可以直接执行：
+
+```text
+plugin_manager action=install_bundle target="C:\Users\you\projects\dsh-frontend-review"
+```
+
+> 不同 Harness 版本的 `install_bundle` 对本地路径的支持不同。如果它只接受 npm 包名或 `file:` / `link:` spec，请改用下面的 profile 手动方式。安装完成后，确认插件在列表里并启用。用 `list_plugins` 查到它的真实 id，然后：
+
+```text
+plugin_manager action=set_plugin target=include:dsh-frontend-review enabled=true
+```
+
+`include:` 后面的 id 以你本地列表显示的为准，不要照抄示例。
+
+#### 方式 B：手动写入 profile
+
+先完全退出 Harness，避免它覆盖配置文件。找到 profile 目录：
+
+```text
+%USERPROFILE%\.dsh\profiles\desktop     # Windows Desktop
+%USERPROFILE%\.dsh\profiles\web         # Windows dsh web
+~/.dsh/profiles/<profile>                # macOS / Linux
+```
+
+如果设置了 `DSH_HOME`，把上面的 `~/.dsh` / `%USERPROFILE%\.dsh` 换成 `$DSH_HOME`。
+
+打开该目录下的 `package.json`，在现有依赖和 bundles 中**追加**，不要删除已有项：
+
+```json
+{
+  "dependencies": {
+    "dsh-frontend-review": "link:C:/Users/you/projects/dsh-frontend-review"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "dsh-frontend-review"
+      ]
+    }
+  }
+}
+```
+
+在 profile 目录安装链接依赖：
+
+```powershell
+cd "$env:USERPROFILE\.dsh\profiles\desktop"
+pnpm install
+```
+
+如果 Harness 由桌面端托管，不能直接用 `dsh plugin --profile desktop ...`（会提示 profile 由 Electron 独占管理）；以插件管理面板或上述 profile 配置为准。
+
+### 3. 重启并确认
+
+1. 完全退出 Harness，再重新打开（不要只刷新页面，首次安装需要重新生成客户端 boot manifest）；
+2. 打开任意会话；
+3. 输入框下方应出现「评审」按钮；
+4. 右侧栏应出现「前端评审」标签页。
+
+确认插件已加载：
+
+```text
+plugin_manager action=list_plugins
+```
+
+应该能看到 `dsh-frontend-review`，并处于启用/已应用状态。
+
+然后在对话里说：
+
+> 把首页拿进来，开一个前端评审画布。
+
+AI 会调用 `review_open`，返回 `reviewId`、画布地址和独立画布链接。
+
+### 升级
+
+```powershell
+cd "C:\Users\you\projects\dsh-frontend-review"
+git pull
+```
+
+然后重启 Harness。若插件管理面板仍显示旧版本，先停用再启用该插件。`link:` 安装直接读取这个目录，不需要重新发布 npm 包。
+
+### 卸载
+
+在插件管理面板移除 `dsh-frontend-review`，或者退出 Harness 后从 profile 的 `package.json` 删除：
+
+- `dependencies` 里的 `dsh-frontend-review`；
+- `dsh.profile.bundles` 里的 `dsh-frontend-review`。
+
+再运行一次 `pnpm install` 并重启。
+
+### 安装排查
+
+| 现象 | 处理 |
+|---|---|
+| 看不到「评审」按钮 | 确认插件已启用；完全退出并重启 Harness；检查 profile 的 `dsh.profile.bundles` 是否包含 `dsh-frontend-review` |
+| 右侧栏没有「前端评审」 | 首次安装后没有重新生成客户端模块；重启 Harness，而不是只刷新聊天页 |
+| 只有工具没有面板 | 当前 Harness 版本不支持该插件的 client slot；先升级 Harness |
+| 截图失败、`BROWSER_NOT_FOUND` | 安装 Chrome/Edge，或设置 `DSH_REVIEW_CHROME` 指向 Chromium 可执行文件 |
+| `review_open` 返回的链接打不开 | 链接 token 随 Harness 进程轮换；重新调用 `review_open` 获取新链接 |
+| `plugins` 里有但状态异常 | 查看 Harness 插件日志；先停用再启用；确认 Node/pnpm 和 profile 路径没有损坏 |
+| 不想用 npm 安装 | 本仓库没有发布到 npm；请使用本地目录 / `link:` 安装，不要执行 `npm i dsh-frontend-review` |
+
+> 版本要求：Harness 需要支持 bundle patch、client module 加载和右侧栏 slots。较老的 Harness 可能只能加载 Host 工具，无法显示画布面板。
 
 ## 使用
 
